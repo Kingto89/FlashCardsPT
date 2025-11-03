@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flashcards Printer (Front & Back, Crop Marks) – 4 per US Letter</title>
+<style>
+  :root{
+    --page-w: 8.5in;     /* US Letter */
+    --page-h: 11in;
+    --margin: 0.25in;    /* printer-safe page margin */
+    --cards-x: 2;        /* columns */
+    --cards-y: 2;        /* rows */
+    --card-w: 4.25in;    /* 8.5 / 2 */
+    --card-h: 5.5in;     /* 11 / 2 */
+    --safe: 0.125in;     /* inner safe margin per card */
+    --crop: 0.12in;      /* crop mark length */
+    --gap-x: 0in;        /* spacing between cards (keep 0 for precise cutting) */
+    --gap-y: 0in;
+    --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  }
+  *{box-sizing:border-box}
+  body{font-family:var(--font);margin:0;background:#0b0d10;color:#eaeef2}
+  header{position:sticky;top:0;background:#0b0d10;border-bottom:1px solid #1e232b;z-index:10}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:6px 0}
+  .bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .bar > *{margin:6px 0}
+  textarea{width:100%;min-height:160px;background:#0f1318;color:#eaeef2;border:1px solid #26303b;border-radius:10px;padding:12px;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+  button{background:#2b66ff;color:white;border:0;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+  button.secondary{background:#1e232b}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  label{font-size:12px;color:#a6b0be}
+  select,input[type="checkbox"]{background:#0f1318;color:#eaeef2;border:1px solid #26303b;border-radius:8px;padding:8px}
+  .cards-preview{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+  .card-mini{background:#0f1318;border:1px dashed #2b3440;border-radius:12px;min-height:120px;padding:12px}
+  .muted{color:#91a0b4;font-size:12px}
+
+  /* PRINT AREA */
+  @page{size: letter; margin: var(--margin);} /* exact page setup */
+  .print{width:var(--page-w); height:var(--page-h); padding:0; margin:0; position:relative; background:white; color:black; page-break-after:always}
+  .sheet{position:absolute; inset:0; display:grid; grid-template-columns:repeat(var(--cards-x), var(--card-w)); grid-template-rows:repeat(var(--cards-y), var(--card-h)); gap:var(--gap-y) var(--gap-x); justify-content:center; align-content:center}
+  .card{
+    position:relative; width:var(--card-w); height:var(--card-h); background:white; color:black; overflow:hidden;
+    border:0; /* no borders to avoid printer scaling illusions */
+  }
+  .card-inner{position:absolute; inset:var(--safe); font-size:12pt; line-height:1.25}
+  .title{font-weight:700; margin-bottom:6px}
+
+  /* Light inset cut guide rectangle */
+  .cut-guide{position:absolute; inset:0.02in; border:0.3pt solid rgba(0,0,0,.35)}
+
+  /* Crop marks using pseudo elements */
+  .card:before, .card:after {content:""; position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none}
+  /* Corners */
+  .card:before{
+    background:
+      /* top-left */
+      linear-gradient(#000,#000) left -0.12in top 0 / var(--crop) 0.4pt no-repeat,
+      linear-gradient(#000,#000) left 0 top -0.12in / 0.4pt var(--crop) no-repeat,
+      /* top-right */
+      linear-gradient(#000,#000) right -0.12in top 0 / var(--crop) 0.4pt no-repeat,
+      linear-gradient(#000,#000) right 0 top -0.12in / 0.4pt var(--crop) no-repeat,
+      /* bottom-left */
+      linear-gradient(#000,#000) left -0.12in bottom 0 / var(--crop) 0.4pt no-repeat,
+      linear-gradient(#000,#000) left 0 bottom -0.12in / 0.4pt var(--crop) no-repeat,
+      /* bottom-right */
+      linear-gradient(#000,#000) right -0.12in bottom 0 / var(--crop) 0.4pt no-repeat,
+      linear-gradient(#000,#000) right 0 bottom -0.12in / 0.4pt var(--crop) no-repeat;
+  }
+
+  /* Registration cross at center (subtle) */
+  .reg{position:absolute; left:50%; top:50%; width:0; height:0}
+  .reg:before, .reg:after{content:""; position:absolute; background:#000}
+  .reg:before{width:12pt; height:0.6pt; left:-6pt; top:-0.3pt}
+  .reg:after{width:0.6pt; height:12pt; left:-0.3pt; top:-6pt}
+
+  /* Hide everything except print sheets when actually printing */
+  @media print{
+    body{background:white}
+    header, .wrap, .preview-area{display:none !important}
+    .print{break-after:page}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Flashcards Printer · 4 per Letter · Crop Marks · Front/Back</h1>
+      <div class="bar">
+        <div>
+          <label>Deck input (one card per line, use <code> :: </code> to split front | back)</label>
+          <textarea id="deck" placeholder="Term :: Definition\nTalocrural joint :: Hinge joint allowing dorsiflexion/plantarflexion\nSubtalar joint :: Primarily inversion/eversion"></textarea>
+          <div class="muted">Example format: <code>Front text :: Back text</code> (if no <code>::</code> found, the same text prints on both sides).</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div>
+            <label>Flip setting for duplex:</label><br>
+            <select id="flip">
+              <option value="long">Flip on LONG edge (portrait) – recommended</option>
+              <option value="short">Flip on SHORT edge (landscape)</option>
+            </select>
+          </div>
+          <div>
+            <label><input id="numberCards" type="checkbox"> Add card numbers (tiny, bottom-right)</label>
+          </div>
+          <div>
+            <label><input id="centerText" type="checkbox" checked> Center content</label>
+          </div>
+          <div>
+            <button id="btnFront">Build Fronts</button>
+            <button id="btnBack" class="secondary">Build Backs</button>
+            <button id="btnPrint" title="Opens the browser print dialog">Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap preview-area">
+    <h2 style="margin:6px 0">Preview (not exact DPI, print to verify). Pages are injected below.</h2>
+    <div id="pages"></div>
+    <p class="muted">Print settings: Paper = US Letter, Scale = <strong>100% / Actual size</strong>, Margins = Default/None, Duplex = match flip setting above (usually <em>Flip on long edge</em>).</p>
+  </div>
+
+  <script>
+  const deckEl = document.getElementById('deck');
+  const pages = document.getElementById('pages');
+  const flipEl = document.getElementById('flip');
+  const numberCardsEl = document.getElementById('numberCards');
+  const centerTextEl = document.getElementById('centerText');
+
+  const CARDS_PER_SHEET = 4; // fixed 2x2 on Letter
+
+  function parseDeck(){
+    const raw = deckEl.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const cards = raw.map((line, i)=>{
+      const parts = line.split(/\s*::\s*/);
+      if(parts.length >= 2){
+        return {front: parts[0], back: parts.slice(1).join(' :: ') };
+      } else {
+        return {front: line, back: line};
+      }
+    });
+    return cards;
+  }
+
+  function chunk(arr, n){
+    const out = [];
+    for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n));
+    return out;
+  }
+
+  function clearPages(){
+    pages.innerHTML = '';
+  }
+
+  function makeCardHTML(text, index){
+    const centered = centerTextEl.checked ? 'display:flex;align-items:center;justify-content:center;text-align:center;' : '';
+    const num = numberCardsEl.checked ? `<div style="position:absolute;right:8pt;bottom:8pt;font:10pt/1 var(--font);opacity:.55">${index+1}</div>` : '';
+    return `
+      <div class="card">
+        <div class="cut-guide"></div>
+        <div class="reg" aria-hidden="true"></div>
+        <div class="card-inner" style="${centered}">${escapeHTML(text).replace(/\n/g,'<br>')}</div>
+        ${num}
+      </div>`;
+  }
+
+  function makeSheetHTML(cardHTMLs){
+    return `<div class="print"><div class="sheet">${cardHTMLs.join('')}</div></div>`;
+  }
+
+  function buildFronts(){
+    clearPages();
+    const cards = parseDeck();
+    const fronts = cards.map(c=>c.front);
+    const groups = chunk(fronts, CARDS_PER_SHEET);
+    groups.forEach((group, gi)=>{
+      const htmlCards = group.map((t, idx)=> makeCardHTML(t, gi*CARDS_PER_SHEET + idx));
+      pages.insertAdjacentHTML('beforeend', makeSheetHTML(htmlCards));
+    });
+    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+  }
+
+  function buildBacks(){
+    clearPages();
+    const cards = parseDeck();
+    const backs = cards.map(c=>c.back);
+    const groups = chunk(backs, CARDS_PER_SHEET);
+
+    // Back-side order: reverse within each sheet to align when flipping on LONG edge (portrait 2x2)
+    const flip = flipEl.value; // 'long' or 'short'
+
+    groups.forEach((group, gi)=>{
+      let order;
+      if (flip === 'long'){
+        // For long-edge (portrait), reverse horizontally per row
+        // Visual mapping indices for 2x2:
+        // Front index positions: [0,1;2,3]
+        // Back should appear mirrored left/right to align → [1,0;3,2]
+        const g = group.slice();
+        while(g.length < CARDS_PER_SHEET) g.push(''); // pad last sheet
+        order = [g[1]||'', g[0]||'', g[3]||'', g[2]||''];
+      } else {
+        // Short-edge flipping (landscape duplex) – mirror top/bottom: [2,3;0,1]
+        const g = group.slice();
+        while(g.length < CARDS_PER_SHEET) g.push('');
+        order = [g[2]||'', g[3]||'', g[0]||'', g[1]||''];
+      }
+      const htmlCards = order.map((t, idx)=> makeCardHTML(t, gi*CARDS_PER_SHEET + idx));
+      pages.insertAdjacentHTML('beforeend', makeSheetHTML(htmlCards));
+    });
+    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+  }
+
+  function escapeHTML(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+  }
+
+  document.getElementById('btnFront').addEventListener('click', buildFronts);
+  document.getElementById('btnBack').addEventListener('click', buildBacks);
+  document.getElementById('btnPrint').addEventListener('click', ()=> window.print());
+
+  // Demo content
+  deckEl.value = [
+    'Talocrural joint :: Hinge joint allowing DF/PF',
+    'Subtalar joint :: Allows inversion/eversion (pronation/supination components)',
+    'Deltoid ligament :: Resists eversion + supports medial ankle',
+    'ATFL :: Resists inversion/plantarflexion (common sprain)'
+  ].join('\n');
+  buildFronts();
+  </script>
+</body>
+</html>
