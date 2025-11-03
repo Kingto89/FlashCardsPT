@@ -99,7 +99,23 @@
         <div>
           <label>Deck input (one card per line, use <code> :: </code> to split front | back)</label>
           <textarea id="deck" placeholder="Term :: Definition\nTalocrural joint :: Hinge joint allowing dorsiflexion/plantarflexion\nSubtalar joint :: Primarily inversion/eversion"></textarea>
-          <div class="muted">Example format: <code>Front text :: Back text</code> (if no <code>::</code> found, the same text prints on both sides).</div>
+          <div class=\"muted\">Example format: <code>Front text :: Back text</code> (if no <code>::</code> found, the same text prints on both sides).</div>
+          <details style=\"margin-top:8px\"><summary style=\"cursor:pointer;color:#91a0b4\">Prefer side‑by‑side typing? (Front | Back)</summary>
+            <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px\">
+              <div>
+                <label>Fronts (one per line)</label>
+                <textarea id=\"frontCol\" placeholder=\"ATFL\nSubtalar\nTalocrural\nDeltoid\"></textarea>
+              </div>
+              <div>
+                <label>Backs (one per line, matched by line number)</label>
+                <textarea id=\"backCol\" placeholder=\"resists inversion + PF\npronation / supination\nDF / PF hinge joint\nresists eversion\"></textarea>
+              </div>
+            </div>
+            <div style=\"margin-top:8px\">
+              <button id=\"btnSync\" class=\"secondary\" title=\"Merge Front/Back columns into the deck textbox above\">Use side‑by‑side</button>
+              <span class=\"muted\">This merges the two columns into the deck box as <code>Front :: Back</code>.</span>
+            </div>
+          </details>
         </div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <div>
@@ -116,9 +132,10 @@
             <label><input id="centerText" type="checkbox" checked> Center content</label>
           </div>
           <div>
-            <button id="btnFront">Build Fronts</button>
-            <button id="btnBack" class="secondary">Build Backs</button>
-            <button id="btnPrint" title="Opens the browser print dialog">Print</button>
+            <button id=\"btnFront\">Build Fronts</button>
+            <button id=\"btnBack\" class=\"secondary\">Build Backs</button>
+            <button id=\"btnBoth\" class=\"secondary\" title=\"Create a 2‑page PDF: page 1 fronts, page 2 backs (duplex long‑edge)\">Build Both (PDF)</button>
+            <button id=\"btnPrint\" title=\"Opens the browser print dialog\">Print</button>
           </div>
         </div>
       </div>
@@ -137,15 +154,37 @@
   const flipEl = document.getElementById('flip');
   const numberCardsEl = document.getElementById('numberCards');
   const centerTextEl = document.getElementById('centerText');
+  const frontColEl = document.getElementById('frontCol');
+  const backColEl = document.getElementById('backCol');
 
   const CARDS_PER_SHEET = 4; // fixed 2x2 on Letter
 
   function parseDeck(){
+    // Prefer merged deck box if populated
     const raw = deckEl.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    const cards = raw.map((line, i)=>{
-      const parts = line.split(/\s*::\s*/);
-      if(parts.length >= 2){
-        return {front: parts[0], back: parts.slice(1).join(' :: ') };
+    if (raw.length) {
+      return raw.map(line => {
+        const parts = line.split(/\s*::\s*/);
+        if(parts.length >= 2){
+          return {front: parts[0], back: parts.slice(1).join(' :: ')};
+        } else {
+          return {front: line, back: line};
+        }
+      });
+    }
+    // If deck box empty, try side‑by‑side columns
+    const fronts = frontColEl ? frontColEl.value.split(/\r?\n/) : [];
+    const backs  = backColEl ? backColEl.value.split(/\r?\n/) : [];
+    const n = Math.max(fronts.length, backs.length);
+    const cards = [];
+    for(let i=0;i<n;i++){
+      const f = (fronts[i]||'').trim();
+      const b = (backs[i]||'').trim();
+      if(!f && !b) continue;
+      cards.push({front: f || b, back: b || f});
+    }
+    return cards;
+  };
       } else {
         return {front: line, back: line};
       }
@@ -227,12 +266,21 @@
   }
 
   document.getElementById('btnFront').addEventListener('click', buildFronts);
+  document.getElementById('btnSync')?.addEventListener('click', ()=>{
+    const f = (frontColEl?.value || '').split(/\r?\n/);
+    const b = (backColEl?.value  || '').split(/\r?\n/);
+    const n = Math.max(f.length, b.le
   document.getElementById('btnBack').addEventListener('click', buildBacks);
   document.getElementById('btnPrint').addEventListener('click', ()=>{
-    // If no sheets exist yet, auto-build fronts so print is not blank
     if (!pages.querySelector('.print')) {
-      if (!deckEl.value.trim()) {
-        // seed a minimal placeholder so you see something
+      if (!deckEl.value.trim() && frontColEl && backColEl && (frontColEl.value || backColEl.value)){
+        // build from side-by-side if deck empty
+        document.getElementById('btnSync')?.click();
+      }
+      if (!pages.querySelector('.print')) buildFronts();
+    }
+    requestAnimationFrame(()=> window.print());
+  }); a minimal placeholder so you see something
         deckEl.value = 'Front :: Back';
       }
       buildFronts();
