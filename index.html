@@ -3,32 +3,29 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flashcards – Minimal 4-up Printer (Front/Back)</title>
+<title>Flashcards — Markdown → Print (Front/Back, 4 per Letter)</title>
 <style>
-  :root{
-    --page-w: 8.5in; --page-h: 11in; /* US Letter */
-    --card-w: 4.25in; --card-h: 5.5in; /* 2x2 grid */
-    --safe: 0.125in; --crop: 0.12in; --margin: 0.25in;
-    --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  }
+  :root{--page-w:8.5in;--page-h:11in;--card-w:4.25in;--card-h:5.5in;--safe:0.125in;--margin:0.25in;--crop:0.12in;--font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
   *{box-sizing:border-box}
   html,body{background:#fff;color:#000;margin:0;font-family:var(--font)}
-  header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;z-index:2}
-  .wrap{max-width:960px;margin:0 auto;padding:16px}
-  textarea{width:100%;min-height:160px;border:1px solid #ccc;border-radius:8px;padding:10px}
+  header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;z-index:3}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  h1{margin:6px 0 10px 0;font-size:20px}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  textarea{width:100%;min-height:160px;border:1px solid #cfd6de;border-radius:8px;padding:10px}
+  input[type=file], select{border:1px solid #cfd6de;border-radius:8px;padding:8px}
   button{background:#0b57d0;color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
-  button.secondary{background:#e7e9eb;color:#111}
-  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
-  .muted{color:#555;font-size:12px}
+  button.secondary{background:#eef2f6;color:#111}
+  .muted{color:#4b5563;font-size:12px}
 
-  /* SHEETS */
+  /* Sheet layout */
   @page{size: letter; margin: var(--margin)}
   .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;page-break-after:always}
-  .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2, var(--card-w));grid-template-rows:repeat(2, var(--card-h));justify-content:center;align-content:center}
+  .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
   .cut{position:absolute;inset:0.02in;border:0.3pt solid rgba(0,0,0,.35)}
-  /* crop marks */
   .card:before{content:"";position:absolute;left:0;right:0;top:0;bottom:0;background:
     linear-gradient(#000,#000) left -0.12in top 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) left 0 top -0.12in/ 0.4pt var(--crop) no-repeat,
@@ -37,113 +34,150 @@
     linear-gradient(#000,#000) left -0.12in bottom 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) left 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat,
     linear-gradient(#000,#000) right -0.12in bottom 0/ var(--crop) 0.4pt no-repeat,
-    linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat;}
+    linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat}
 
-  @media print{
-    header,.wrap.instructions{display:none!important}
-    body{background:#fff!important;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .print{break-after:page}
-  }
+  @media print{ header,.wrap.instructions{display:none!important} .print{break-after:page} }
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <h1 style="margin:6px 0">Flashcards – Minimal 4-up (Front/Back)</h1>
-    <div>
-      <label>Deck (one card per line. Use <code>Front :: Back</code> to split sides)</label>
-      <textarea id="deck"></textarea>
-      <div class="muted">Example: <code>ATFL :: Resists inversion + PF</code>. If no <code>::</code>, the same text prints on both sides.</div>
-      <div class="controls">
+    <h1>Flashcards — Markdown → Print (Front/Back)</h1>
+    <div class="grid">
+      <div>
+        <label>Paste Markdown (table or list)</label>
+        <textarea id="md" placeholder="Two supported Markdown formats:\n\n1) Table:\n| Front | Back |\n| --- | --- |\n| ATFL | Resists inversion + PF |\n| Subtalar | Pronation / supination |\n\n2) List (one per line, use :: to split):\nATFL :: Resists inversion + PF\nSubtalar :: Pronation / supination\n"></textarea>
+      </div>
+      <div class="row">
+        <label>…or load a .md file: <input type="file" id="file" accept=".md,.markdown,.txt"></label>
         <label>Duplex flip:
           <select id="flip">
             <option value="long">Flip on LONG edge (portrait)</option>
             <option value="short">Flip on SHORT edge (landscape)</option>
           </select>
         </label>
-        <button id="makeFronts">Build Fronts</button>
-        <button id="makeBacks" class="secondary">Build Backs</button>
-        <button id="makeBoth" class="secondary">Build Both (PDF)</button>
-        <button id="doPrint">Print</button>
+        <button id="btnParse">Parse Markdown</button>
+        <button id="btnFronts" class="secondary">Build Fronts</button>
+        <button id="btnBacks" class="secondary">Build Backs</button>
+        <button id=\"btnBoth\" class=\"secondary\">Build Both (PDF)</button>
+        <button id=\"btnArrange\" class=\"secondary\" style=\"background:#1d9b52;color:#fff\">Arrange For Print</button>
+        <button id="btnPrint">Print</button>
       </div>
+      <div class="muted">Tips: Keep text inside the inner margin when designing. Print with <strong>Scale = 100% / Actual size</strong> and duplex <em>Flip on long edge</em>. If your printer clips edges, increase Page Margins in the browser print dialog.</div>
     </div>
   </div>
 </header>
-
 <div class="wrap instructions">
-  <p class="muted">Print settings: Destination = printer or PDF • Scale = <strong>100% / Actual size</strong> • Two‑sided = match flip option (usually <em>Flip on long edge</em>).</p>
+  <p class="muted">Supported Markdown inputs:<br>
+  • <strong>Table</strong> with headers <code>Front | Back</code> • <strong>List</strong> with <code>Front :: Back</code> per line. The tool re‑imposes for front/back alignment automatically.</p>
 </div>
-
 <div id="pages"></div>
 
 <script>
 (function(){
-  var CARDS_PER_SHEET = 4;
-  var deckEl = document.getElementById('deck');
   var pages = document.getElementById('pages');
+  var mdEl = document.getElementById('md');
+  var fileEl = document.getElementById('file');
   var flipEl = document.getElementById('flip');
+  var CARDS_PER_SHEET = 4;
+  var CARDS = []; // [{front,back}]
 
-  function parse(){
-    var raw = deckEl.value.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
-    return raw.map(function(line){
-      var parts = line.split(/\s*::\s*/);
-      if(parts.length>=2){return {front:parts[0], back:parts.slice(1).join(' :: ')}};
-      return {front:line, back:line};
+  function clear(){ pages.innerHTML=''; }
+  function esc(s){ return s.replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];}); }
+  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/\n/g,'<br>')+'</div></div>'; }
+  function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
+  function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
+
+  // PARSERS
+  function parseMarkdown(md){
+    // Try table first: find a table whose header contains Front/Back
+    var lines = md.split(/\r?\n/);
+    var rows = [];
+    var inTable = false, headerIdx = -1;
+    for (var i=0;i<lines.length;i++){
+      var line = lines[i].trim();
+      if(!inTable){
+        if(/\|/.test(line) && /front/i.test(line) && /back/i.test(line)){
+          // header line
+          if(i+1<lines.length && /^\s*\|?\s*[-: ]+\|[-: |]+$/i.test(lines[i+1])){ inTable = true; headerIdx = i; i++; continue; }
+        }
+      } else {
+        if(line==='' || !/\|/.test(line)) break; // table ends
+        rows.push(line);
+      }
+    }
+    var cards = [];
+    if(inTable && rows.length){
+      rows.forEach(function(row){
+        // split pipes, drop empty first/last if present
+        var cols = row.split('|').map(function(c){return c.trim();});
+        if(cols[0]==='') cols.shift();
+        if(cols[cols.length-1]==='') cols.pop();
+        if(cols.length>=2){ cards.push({front: cols[0], back: cols[1]}); }
+      });
+      if(cards.length) return cards;
+    }
+    // Fallback: list with '::' separator
+    var list = lines.map(function(s){return s.trim();}).filter(Boolean);
+    list.forEach(function(line){
+      var m = line.split(/\s*::\s*/);
+      if(m.length>=2) cards.push({front:m[0], back:m.slice(1).join(' :: ')});
+      else cards.push({front:line, back:line});
     });
+    return cards;
   }
-  function chunk(arr,n){var out=[];for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n));return out;}
-  function clear(){pages.innerHTML='';}
-  function esc(s){return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];});}
-  function cardHTML(text){return '\n<div class="card">\n  <div class="cut"></div>\n  <div class="card-inner">'+esc(text).replace(/\n/g,'<br>')+'</div>\n</div>';}
-  function sheetHTML(cards){return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>';}
 
   function buildFronts(){
     clear();
-    var cards = parse().map(function(c){return c.front});
-    var groups = chunk(cards, CARDS_PER_SHEET);
-    groups.forEach(function(g){
-      while(g.length<CARDS_PER_SHEET) g.push('');
-      var html = g.map(cardHTML);
-      pages.insertAdjacentHTML('beforeend', sheetHTML(html));
-    });
+    var fronts = CARDS.map(function(c){return c.front});
+    var groups = chunk(fronts, CARDS_PER_SHEET);
+    groups.forEach(function(g){ while(g.length<CARDS_PER_SHEET) g.push(''); pages.insertAdjacentHTML('beforeend', sheetHTML(g.map(cardHTML))); });
   }
   function buildBacks(){
     clear();
-    var cards = parse().map(function(c){return c.back});
-    var groups = chunk(cards, CARDS_PER_SHEET);
-    var flip = flipEl.value; // 'long' or 'short'
+    var backs = CARDS.map(function(c){return c.back});
+    var groups = chunk(backs, CARDS_PER_SHEET);
+    var flip = flipEl.value;
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
-      var order;
-      if(flip==='long'){
-        // mirror left/right per row: [1,0, 3,2]
-        order = [g[1],g[0],g[3],g[2]];
-      } else {
-        // short-edge: mirror top/bottom: [2,3, 0,1]
-        order = [g[2],g[3],g[0],g[1]];
-      }
-      var html = order.map(cardHTML);
-      pages.insertAdjacentHTML('beforeend', sheetHTML(html));
+      var order = (flip==='long') ? [g[1],g[0],g[3],g[2]] : [g[2],g[3],g[0],g[1]];
+      pages.insertAdjacentHTML('beforeend', sheetHTML(order.map(cardHTML)));
     });
   }
   function buildBoth(){ clear(); buildFronts(); buildBacks(); }
 
-  document.getElementById('makeFronts').addEventListener('click', buildFronts);
-  document.getElementById('makeBacks').addEventListener('click', buildBacks);
-  document.getElementById('makeBoth').addEventListener('click', function(){ buildBoth(); requestAnimationFrame(function(){ window.print(); }); });
-  document.getElementById('doPrint').addEventListener('click', function(){
-    if(!pages.querySelector('.print')) buildFronts();
-    requestAnimationFrame(function(){ window.print(); });
+  // Wire up
+  document.getElementById('btnParse').addEventListener('click', function(){
+    CARDS = parseMarkdown(mdEl.value);
+    if(!CARDS.length){ alert('Could not find any cards. Use a Markdown table (Front|Back) or list lines with ::'); return; }
+    buildFronts();
+    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+  });
+  document.getElementById('btnFronts').addEventListener('click', buildFronts);
+  document.getElementById('btnBacks').addEventListener('click', buildBacks);
+  document.getElementById('btnBoth').addEventListener('click', function(){ buildBoth(); requestAnimationFrame(function(){ window.print(); }); });
+  document.getElementById('btnArrange').addEventListener('click', function(){ CARDS = parseMarkdown(mdEl.value); buildBoth(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); });
+  document.getElementById('btnBoth').addEventListener('click', function(){ buildBoth(); requestAnimationFrame(function(){ window.print(); }); });
+  document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) buildFronts(); requestAnimationFrame(function(){ window.print(); }); });
+
+  // File loader
+  fileEl.addEventListener('change', function(){
+    var f = fileEl.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(e){ mdEl.value = e.target.result || ''; };
+    reader.readAsText(f);
   });
 
-  // Seed an example so the page isn't empty
-  deckEl.value = [
-    'ATFL :: Resists inversion + PF',
-    'Subtalar :: Pronation / supination components',
-    'Talocrural :: DF / PF hinge joint',
-    'Deltoid :: Resists eversion (medial support)'
+  // Seed example so page isn't empty
+  mdEl.value = [
+    '| Front | Back |',
+    '| --- | --- |',
+    '| ATFL | Resists inversion + PF |',
+    '| Subtalar | Pronation / supination |',
+    '| Talocrural | DF / PF hinge joint |',
+    '| Deltoid | Resists eversion (medial support) |'
   ].join('\n');
-  buildFronts();
+  document.getElementById('btnParse').click();
 })();
 </script>
 </body>
