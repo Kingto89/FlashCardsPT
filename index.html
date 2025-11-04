@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flashcards — Two‑Column Entry → Print (Front/Back)</title>
+<title>Flashcards — Two‑Column Entry → Print (Front/Back, Landscape)</title>
 <style>
   :root{
-    /* Landscape 11x8.5 page with 2×2 cards (5.5 × 4.25 each) */
+    /* LANDSCAPE Letter sheet with 2×2 cards (5.5 × 4.25) */
     --page-w: 11in; --page-h: 8.5in; /* sheet */
-    --card-w: 5.5in; --card-h: 4.25in; /* card size (landscape) */
+    --card-w: 5.5in; --card-h: 4.25in; /* card size */
     --safe: 0.125in; --crop: 0.12in; --margin: 0.25in;
     --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   }
@@ -19,11 +19,12 @@
   h1{margin:6px 0 10px 0;font-size:20px}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .col textarea{width:100%;min-height:240px;border:1px solid #cfd6de;border-radius:8px;padding:10px}
+  textarea{width:100%;min-height:260px;border:1px solid #cfd6de;border-radius:8px;padding:10px}
   .muted{color:#4b5563;font-size:12px}
   button{background:#0b57d0;color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
   button.secondary{background:#eef2f6;color:#111}
   select{border:1px solid #cfd6de;border-radius:8px;padding:8px}
+  .ok{background:#1d9b52}
 
   /* Sheet layout */
   @page{size: 11in 8.5in; margin: var(--margin)} /* LANDSCAPE letter */
@@ -43,105 +44,105 @@
     linear-gradient(#000,#000) right -0.12in bottom 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat}
 
-  @media print{ header,.wrap.instructions{display:none!important} .print{break-after:page} }
+  .page-label{margin:12px 0 4px 0;font-size:13px;color:#334155}
+  @media print{ header,.wrap.instructions,.page-label{display:none!important} .print{break-after:page} }
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <h1>Flashcards — Two‑Column Entry → Arrange For Print</h1>
-    <div class="cols">
-      <div class="col">
-        <label><strong>FRONTS</strong> (one line = one card)</label>
-        <textarea id="fronts" placeholder="ATFL\nSubtalar\nTalocrural\nDeltoid"></textarea>
-      </div>
-      <div class="col">
+    <h1>Flashcards — Two‑Column Entry → Arrange & Print (Landscape)</h1>
+    <div id="cardsArea" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div>
+      <button id="addCardRow" style="margin-top:10px;background:#1d9b52;color:#fff;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:600">+ Add Card</button>
+      <div>
         <label><strong>BACKS</strong> (match line‑for‑line)</label>
-        <textarea id="backs" placeholder="Resists inversion + PF\nPronation / supination\nDF / PF hinge joint\nResists eversion (medial support)"></textarea>
+        <textarea id="backs" placeholder="Resists inversion + PF
+Pronation / supination
+DF / PF hinge joint
+Resists eversion (medial support)"></textarea>
       </div>
     </div>
     <div class="row" style="margin-top:10px">
       <label>Duplex flip:
         <select id="flip">
-          <option value="long">Flip on LONG edge (landscape sheet)</option>
+          <option value="long">Flip on LONG edge (recommended)</option>
           <option value="short">Flip on SHORT edge</option>
         </select>
       </label>
-      <button id="btnArrange" class="secondary" style="background:#1d9b52;color:#fff">Arrange For Print</button>
-      <button id="btnFronts" class="secondary">Build Fronts</button>
-      <button id="btnBacks" class="secondary">Build Backs</button>
+      <button id="btnArrange" class="ok">Arrange For Print</button>
       <button id="btnBoth" class="secondary">Build Both (PDF)</button>
       <button id="btnPrint">Print</button>
     </div>
-    <div class="muted" style="margin-top:6px">Type fast in the two columns. “Arrange For Print” re‑imposes to 2×2 landscape sheets so each back sits directly behind its front. Print with <strong>Scale = 100% / Actual size</strong> and duplex <em>Flip on long edge</em>.</div>
+    <div class="muted" style="margin-top:6px">Type both columns. “Arrange For Print” builds <em>page 1 = FRONTS</em> then <em>page 2 = BACKS</em> with correct mirroring for duplex. Print with <strong>Scale = 100%</strong> and <strong>Two‑sided = Flip on long edge</strong>.</div>
   </div>
 </header>
 
-<div class="wrap instructions">
-  <p class="muted">Card size: 5.5 × 4.25 (landscape). Sheet: 11 × 8.5. If your printer clips edges, increase margins in the print dialog.</p>
-</div>
-
-<div id="pages"></div>
+<div id="pages" class="wrap"></div>
 
 <script>
 (function(){
-  var pages = document.getElementById('pages');
-  var frontsEl = document.getElementById('fronts');
-  var backsEl  = document.getElementById('backs');
-  var flipEl   = document.getElementById('flip');
+  var pages   = document.getElementById('pages');
+  var cardsArea = document.getElementById('cardsArea'); = document.getElementById('backs');
+  var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
-  var CARDS = []; // [{front,back}]
+  var CARDS = [];
 
   function clear(){ pages.innerHTML=''; }
   function esc(s){ return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];}); }
-  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/\n/g,'<br>')+'</div></div>'; }
+  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/
+/g,'<br>')+'</div></div>'; }
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
   function readColumns(){
-    var f = frontsEl.value.split(/\r?\n/);
-    var b = backsEl.value.split(/\r?\n/);
-    var n = Math.max(f.length,b.length);
+    var rows = cardsArea.querySelectorAll('.cardRow');
     var out = [];
-    for(var i=0;i<n;i++){
-      var ff = (f[i]||'').trim();
-      var bb = (b[i]||'').trim();
-      if(!ff && !bb) continue; // skip empty rows
-      out.push({front: ff || bb, back: bb || ff});
-    }
+    rows.forEach(r=>{
+      var ff = r.querySelector('.frontInput').value.trim();
+      var bb = r.querySelector('.backInput').value.trim();
+      if(ff || bb) out.push({front:ff||bb, back:bb||ff});
+    });
     CARDS = out;
   }
-
-  function buildFronts(){
-    readColumns();
-    clear();
-    var groups = chunk(CARDS.map(function(c){return c.front;}), CARDS_PER_SHEET);
-    groups.forEach(function(g){ while(g.length<CARDS_PER_SHEET) g.push(''); pages.insertAdjacentHTML('beforeend', sheetHTML(g.map(cardHTML))); });
   }
-  function buildBacks(){
-    readColumns();
-    clear();
-    var groups = chunk(CARDS.map(function(c){return c.back;}), CARDS_PER_SHEET);
+
+  // Render helpers (NO CLEAR inside so we can compose pages deterministically)
+  function renderFrontSheets(){
+    var groups = chunk(CARDS.map(function(c){return c.front;}), CARDS_PER_SHEET);
+    groups.forEach(function(g){ while(g.length<CARDS_PER_SHEET) g.push(''); pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(g.map(cardHTML))); });
+  }
+  function renderBackSheets(){
     var flip = flipEl.value; // 'long' or 'short'
+    var groups = chunk(CARDS.map(function(c){return c.back;}), CARDS_PER_SHEET);
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
       // LANDSCAPE sheet logic: long-edge flip mirrors TOP/BOTTOM; short-edge mirrors LEFT/RIGHT
       var order = (flip==='long') ? [g[2],g[3],g[0],g[1]] : [g[1],g[0],g[3],g[2]];
-      pages.insertAdjacentHTML('beforeend', sheetHTML(order.map(cardHTML)));
+      pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
     });
   }
-  function buildBoth(){ clear(); buildFronts(); buildBacks(); }
 
-  document.getElementById('btnArrange').addEventListener('click', function(){ buildBoth(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); });
-  document.getElementById('btnFronts').addEventListener('click', buildFronts);
-  document.getElementById('btnBacks').addEventListener('click', buildBacks);
-  document.getElementById('btnBoth').addEventListener('click', function(){ buildBoth(); requestAnimationFrame(function(){ window.print(); }); });
-  document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) buildFronts(); requestAnimationFrame(function(){ window.print(); }); });
+  function arrange(){
+    readColumns();
+    clear();
+    renderFrontSheets();
+    renderBackSheets();
+    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+  }
 
-  // seed example
-  frontsEl.value = 'ATFL\nSubtalar\nTalocrural\nDeltoid';
-  backsEl.value  = 'Resists inversion + PF\nPronation / supination\nDF / PF hinge joint\nResists eversion (medial support)';
-})();
+  document.getElementById('btnArrange').addEventListener('click', arrange);
+  document.getElementById('btnBoth').addEventListener('click', function(){ arrange(); requestAnimationFrame(function(){ window.print(); }); });
+  document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) arrange(); requestAnimationFrame(function(){ window.print(); }); });
+
+  document.getElementById('addCardRow').addEventListener('click', ()=>{
+    let row=document.createElement('div');
+    row.className='cardRow';
+    row.style.display='grid'; row.style.gridTemplateColumns='1fr 1fr'; row.style.gap='12px';
+    row.innerHTML='<textarea class="frontInput" placeholder="front"></textarea><textarea class="backInput" placeholder="back"></textarea>';
+    cardsArea.appendChild(row);
+  });
+  // add initial example row
+  document.getElementById('addCardRow').click();
 </script>
 </body>
 </html>
