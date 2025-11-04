@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flashcards — Two‑Column Entry → Print (Front/Back, Landscape)</title>
+<title>Flashcards — Row Editor (Front | Back) → Arrange & Print</title>
 <style>
   :root{
-    /* LANDSCAPE Letter sheet with 2×2 cards (5.5 × 4.25) */
-    --page-w: 11in; --page-h: 8.5in; /* sheet */
-    --card-w: 5.5in; --card-h: 4.25in; /* card size */
+    --page-w: 11in; --page-h: 8.5in;   /* LANDSCAPE Letter sheet */
+    --card-w: 5.5in; --card-h: 4.25in; /* Card size */
     --safe: 0.125in; --crop: 0.12in; --margin: 0.25in;
     --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   }
@@ -17,23 +16,25 @@
   header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;z-index:3}
   .wrap{max-width:1080px;margin:0 auto;padding:16px}
   h1{margin:6px 0 10px 0;font-size:20px}
-  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  textarea{width:100%;min-height:260px;border:1px solid #cfd6de;border-radius:8px;padding:10px}
+  .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .muted{color:#4b5563;font-size:12px}
   button{background:#0b57d0;color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
   button.secondary{background:#eef2f6;color:#111}
-  select{border:1px solid #cfd6de;border-radius:8px;padding:8px}
   .ok{background:#1d9b52}
 
+  /* Row editor */
+  #cardsArea{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+  .cardRow{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:stretch}
+  .cardRow textarea{min-height:74px;border:1px solid #cfd6de;border-radius:8px;padding:10px;width:100%}
+  .del{background:#ef4444}
+
   /* Sheet layout */
-  @page{size: 11in 8.5in; margin: var(--margin)} /* LANDSCAPE letter */
+  @page{size: 11in 8.5in; margin: var(--margin)}
   .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;page-break-after:always}
   .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
   .cut{position:absolute;inset:0.02in;border:0.3pt solid rgba(0,0,0,.35)}
-  /* crop marks */
   .card:before{content:"";position:absolute;left:0;right:0;top:0;bottom:0;background:
     linear-gradient(#000,#000) left -0.12in top 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) left 0 top -0.12in/ 0.4pt var(--crop) no-repeat,
@@ -43,7 +44,6 @@
     linear-gradient(#000,#000) left 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat,
     linear-gradient(#000,#000) right -0.12in bottom 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat}
-
   .page-label{margin:12px 0 4px 0;font-size:13px;color:#334155}
   @media print{ header,.wrap.instructions,.page-label{display:none!important} .print{break-after:page} }
 </style>
@@ -51,18 +51,10 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>Flashcards — Two‑Column Entry → Arrange & Print (Landscape)</h1>
-    <div id="cardsArea" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div>
-      <button id="addCardRow" style="margin-top:10px;background:#1d9b52;color:#fff;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:600">+ Add Card</button>
-      <div>
-        <label><strong>BACKS</strong> (match line‑for‑line)</label>
-        <textarea id="backs" placeholder="Resists inversion + PF
-Pronation / supination
-DF / PF hinge joint
-Resists eversion (medial support)"></textarea>
-      </div>
-    </div>
-    <div class="row" style="margin-top:10px">
+    <h1>Flashcards — Front | Back Row Editor → Arrange & Print</h1>
+
+    <div class="controls">
+      <button id="addCard" class="ok">+ Add Card</button>
       <label>Duplex flip:
         <select id="flip">
           <option value="long">Flip on LONG edge (recommended)</option>
@@ -70,10 +62,12 @@ Resists eversion (medial support)"></textarea>
         </select>
       </label>
       <button id="btnArrange" class="ok">Arrange For Print</button>
-      <button id="btnBoth" class="secondary">Build Both (PDF)</button>
+      <button id="btnPDF" class="secondary">Build Both (PDF)</button>
       <button id="btnPrint">Print</button>
     </div>
-    <div class="muted" style="margin-top:6px">Type both columns. “Arrange For Print” builds <em>page 1 = FRONTS</em> then <em>page 2 = BACKS</em> with correct mirroring for duplex. Print with <strong>Scale = 100%</strong> and <strong>Two‑sided = Flip on long edge</strong>.</div>
+
+    <div id="cardsArea"></div>
+    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two‑sided: Flip on long edge</strong>.</div>
   </div>
 </header>
 
@@ -81,68 +75,74 @@ Resists eversion (medial support)"></textarea>
 
 <script>
 (function(){
+  var cardsArea = document.getElementById('cardsArea');
   var pages   = document.getElementById('pages');
-  var cardsArea = document.getElementById('cardsArea'); = document.getElementById('backs');
   var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
   var CARDS = [];
 
-  function clear(){ pages.innerHTML=''; }
+  function addRow(front, back){
+    var row = document.createElement('div');
+    row.className = 'cardRow';
+    row.innerHTML = '<textarea class="front" placeholder="front"></textarea>'+
+                    '<textarea class="back"  placeholder="back"></textarea>'+
+                    '<button class="del">✕</button>';
+    cardsArea.appendChild(row);
+    if(front) row.querySelector('.front').value = front;
+    if(back)  row.querySelector('.back').value  = back;
+    row.querySelector('.del').addEventListener('click', function(){ row.remove(); });
+  }
+
+  function readRows(){
+    CARDS = [];
+    var rows = cardsArea.querySelectorAll('.cardRow');
+    rows.forEach(function(r){
+      var f = r.querySelector('.front').value.trim();
+      var b = r.querySelector('.back').value.trim();
+      if(f || b) CARDS.push({front: f || b, back: b || f});
+    });
+  }
+
   function esc(s){ return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];}); }
-  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/
-/g,'<br>')+'</div></div>'; }
+  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/\n/g,'<br>')+'</div></div>'; }
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
-  function readColumns(){
-    var rows = cardsArea.querySelectorAll('.cardRow');
-    var out = [];
-    rows.forEach(r=>{
-      var ff = r.querySelector('.frontInput').value.trim();
-      var bb = r.querySelector('.backInput').value.trim();
-      if(ff || bb) out.push({front:ff||bb, back:bb||ff});
-    });
-    CARDS = out;
-  }
-  }
+  function clearPages(){ pages.innerHTML = ''; }
 
-  // Render helpers (NO CLEAR inside so we can compose pages deterministically)
-  function renderFrontSheets(){
+  function renderFronts(){
     var groups = chunk(CARDS.map(function(c){return c.front;}), CARDS_PER_SHEET);
     groups.forEach(function(g){ while(g.length<CARDS_PER_SHEET) g.push(''); pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(g.map(cardHTML))); });
   }
-  function renderBackSheets(){
-    var flip = flipEl.value; // 'long' or 'short'
+  function renderBacks(){
     var groups = chunk(CARDS.map(function(c){return c.back;}), CARDS_PER_SHEET);
+    var flip = flipEl.value; // landscape sheet
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
-      // LANDSCAPE sheet logic: long-edge flip mirrors TOP/BOTTOM; short-edge mirrors LEFT/RIGHT
+      // Landscape: long-edge → mirror TOP/BOTTOM; short-edge → mirror LEFT/RIGHT
       var order = (flip==='long') ? [g[2],g[3],g[0],g[1]] : [g[1],g[0],g[3],g[2]];
       pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
     });
   }
 
   function arrange(){
-    readColumns();
-    clear();
-    renderFrontSheets();
-    renderBackSheets();
+    readRows();
+    clearPages();
+    renderFronts();
+    renderBacks();
     window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
   }
 
+  // Buttons
+  document.getElementById('addCard').addEventListener('click', function(){ addRow('',''); });
   document.getElementById('btnArrange').addEventListener('click', arrange);
-  document.getElementById('btnBoth').addEventListener('click', function(){ arrange(); requestAnimationFrame(function(){ window.print(); }); });
+  document.getElementById('btnPDF').addEventListener('click', function(){ arrange(); requestAnimationFrame(function(){ window.print(); }); });
   document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) arrange(); requestAnimationFrame(function(){ window.print(); }); });
 
-  document.getElementById('addCardRow').addEventListener('click', ()=>{
-    let row=document.createElement('div');
-    row.className='cardRow';
-    row.style.display='grid'; row.style.gridTemplateColumns='1fr 1fr'; row.style.gap='12px';
-    row.innerHTML='<textarea class="frontInput" placeholder="front"></textarea><textarea class="backInput" placeholder="back"></textarea>';
-    cardsArea.appendChild(row);
-  });
-  // add initial example row
-  document.getElementById('addCardRow').click();
+  // Seed two example rows so page shows structure
+  addRow('ATFL','Resists inversion + PF');
+  addRow('Subtalar','Pronation / supination');
+})();
 </script>
 </body>
 </html>
