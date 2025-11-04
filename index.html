@@ -30,7 +30,9 @@
 
   /* Sheet layout */
   @page{size: 11in 8.5in; margin: var(--margin)}
-  .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;page-break-after:auto}
+  /* FIX 1: remove forced page breaks; rely on natural pagination */
+  .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;
+         page-break-after:auto; break-after:auto;}
   .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
@@ -45,7 +47,13 @@
     linear-gradient(#000,#000) right -0.12in bottom 0/ var(--crop) 0.4pt no-repeat,
     linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat}
   .page-label{margin:12px 0 4px 0;font-size:13px;color:#334155}
-  @media print{ header,.wrap.instructions,.page-label{display:none!important} .print{break-after:page} }
+
+  /* FIX 1b: ensure wrapper padding doesn't push sheets onto extra pages in print */
+  @media print{
+    header,.wrap.instructions,.page-label{display:none!important}
+    #pages.wrap{padding:0!important;margin:0!important}
+    .print{break-after:auto!important; page-break-after:auto!important}
+  }
 </style>
 </head>
 <body>
@@ -67,7 +75,7 @@
     </div>
 
     <div id="cardsArea"></div>
-    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two‑sided: Flip on long edge</strong>.</div>
+    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two-sided: Flip on long edge</strong>.</div>
   </div>
 </header>
 
@@ -80,6 +88,21 @@
   var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
   var CARDS = [];
+
+  // FIX 2: conservative per-card limits to avoid overflow pushing layout
+  var MAX_CHARS = 240;   // ~safe at 14pt, 1.25 line-height, 5.25" x 4" inner box
+  var MAX_WORDS = 40;    // backstop if very short words inflate char count
+
+  function clampText(s){
+    s = (s||'').trim();
+    if(!s) return '';
+    var words = s.split(/\s+/);
+    if(words.length > MAX_WORDS) words = words.slice(0, MAX_WORDS);
+    var clipped = words.join(' ');
+    if(clipped.length > MAX_CHARS) clipped = clipped.slice(0, MAX_CHARS).replace(/\s+\S*$/,'');
+    if(clipped.length < s.length) clipped += '…';
+    return clipped;
+  }
 
   function addRow(front, back){
     var row = document.createElement('div');
@@ -97,8 +120,8 @@
     CARDS = [];
     var rows = cardsArea.querySelectorAll('.cardRow');
     rows.forEach(function(r){
-      var f = r.querySelector('.front').value.trim();
-      var b = r.querySelector('.back').value.trim();
+      var f = clampText(r.querySelector('.front').value);
+      var b = clampText(r.querySelector('.back').value);
       if(f || b) CARDS.push({front: f || b, back: b || f});
     });
   }
