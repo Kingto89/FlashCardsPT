@@ -30,7 +30,8 @@
 
   /* Sheet layout */
   @page{size: 11in 8.5in; margin: var(--margin)}
-  .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;page-break-after:always}
+  .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;break-after:page;break-inside:avoid}
+  .print:last-child{break-after:auto}
   .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
@@ -104,8 +105,12 @@
   }
 
   function esc(s){ return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];}); }
-  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/
-/g,'<br>')+'</div></div>'; }
+  function cardHTML(text){
+    return '<div class="card"><div class="cut"></div><div class="card-inner">'
+         + esc(text).replace(/
+/g,'<br>')
+         + '</div></div>';
+  }
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
