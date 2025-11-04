@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flashcards — Row Editor (Front | Back) → Arrange & Print</title>
+<title>Flashcards — Row Editor (3×5) → Arrange & Print</title>
 <style>
   :root{
-    --page-w: 11in; --page-h: 8.5in;   /* LANDSCAPE Letter sheet */
-    --card-w: 5.5in; --card-h: 4.25in; /* Card size */
-    --safe: 0.125in; --crop: 0.12in; --margin: 0.25in;
+    /* PORTRAIT Letter sheet with 3 cards per page (true 3×5 index cards) */
+    --page-w: 8.5in; --page-h: 11in;   /* PORTRAIT Letter */
+    --card-w: 5in;  --card-h: 3in;     /* 3×5 card (landscape) */
+    --safe: 0.125in; --crop: 0.12in; --margin: 0.5in; /* slightly larger margin for most printers */
     --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   }
   *{box-sizing:border-box}
@@ -28,10 +29,10 @@
   .cardRow textarea{min-height:74px;border:1px solid #cfd6de;border-radius:8px;padding:10px;width:100%}
   .del{background:#ef4444}
 
-  /* Sheet layout */
-  @page{size: 11in 8.5in; margin: var(--margin)}
+  /* Sheet layout (3 cards stacked vertically, centered) */
+  @page{size: 8.5in 11in; margin: var(--margin)}
   .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;page-break-after:always}
-  .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
+  .sheet{position:absolute;inset:0;display:grid;grid-template-columns:var(--card-w);grid-template-rows:repeat(3,var(--card-h));justify-content:center;align-content:center;gap:0}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
   .cut{position:absolute;inset:0.02in;border:0.3pt solid rgba(0,0,0,.35)}
@@ -51,13 +52,13 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>Flashcards — Front | Back Row Editor → Arrange & Print</h1>
+    <h1>Flashcards — Front | Back Row Editor → Arrange & Print (3×5, 3 per page)</h1>
 
     <div class="controls">
       <button id="addCard" class="ok">+ Add Card</button>
       <label>Duplex flip:
         <select id="flip">
-          <option value="long">Flip on LONG edge (recommended)</option>
+          <option value="long">Flip on LONG edge (portrait sheet)</option>
           <option value="short">Flip on SHORT edge</option>
         </select>
       </label>
@@ -67,7 +68,7 @@
     </div>
 
     <div id="cardsArea"></div>
-    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two‑sided: Flip on long edge</strong>.</div>
+    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. “Arrange For Print” builds <em>page 1 fronts</em> and <em>page 2 backs</em> with correct mirroring. Print with <strong>Scale 100%</strong> and duplex <strong>Flip on long edge</strong>. True index card size: <strong>3×5</strong>; 3 cards per page.</div>
   </div>
 </header>
 
@@ -78,7 +79,7 @@
   var cardsArea = document.getElementById('cardsArea');
   var pages   = document.getElementById('pages');
   var flipEl  = document.getElementById('flip');
-  var CARDS_PER_SHEET = 4;
+  var CARDS_PER_SHEET = 3; // three 3×5 cards per page
   var CARDS = [];
 
   function addRow(front, back){
@@ -104,7 +105,8 @@
   }
 
   function esc(s){ return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];}); }
-  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/\n/g,'<br>')+'</div></div>'; }
+  function cardHTML(text){ return '<div class="card"><div class="cut"></div><div class="card-inner">'+esc(text).replace(/
+/g,'<br>')+'</div></div>'; }
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
@@ -116,11 +118,12 @@
   }
   function renderBacks(){
     var groups = chunk(CARDS.map(function(c){return c.back;}), CARDS_PER_SHEET);
-    var flip = flipEl.value; // landscape sheet
+    var flip = flipEl.value; // portrait sheet
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
-      // Landscape: long-edge → mirror TOP/BOTTOM; short-edge → mirror LEFT/RIGHT
-      var order = (flip==='long') ? [g[2],g[3],g[0],g[1]] : [g[1],g[0],g[3],g[2]];
+      // Portrait: long-edge flip mirrors LEFT/RIGHT (no vertical reordering needed).
+      // Short-edge flip mirrors TOP/BOTTOM (reverse vertical order).
+      var order = (flip==='short') ? [g[2], g[1], g[0]] : [g[0], g[1], g[2]];
       pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
     });
   }
@@ -128,6 +131,7 @@
   function arrange(){
     readRows();
     clearPages();
+    if(CARDS.length===0){ alert('Add at least one card.'); return; }
     renderFronts();
     renderBacks();
     window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
@@ -139,7 +143,7 @@
   document.getElementById('btnPDF').addEventListener('click', function(){ arrange(); requestAnimationFrame(function(){ window.print(); }); });
   document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) arrange(); requestAnimationFrame(function(){ window.print(); }); });
 
-  // Seed two example rows so page shows structure
+  // Seed 2 example rows so structure is visible
   addRow('ATFL','Resists inversion + PF');
   addRow('Subtalar','Pronation / supination');
 })();
