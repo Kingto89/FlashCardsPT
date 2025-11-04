@@ -53,7 +53,6 @@
     header,.wrap.instructions,.page-label{display:none!important}
     #pages.wrap{padding:0!important;margin:0!important}
     .print{break-after:auto!important; page-break-after:auto!important}
-    .print{ transform: scale(0.94) !important; }
   }
 </style>
 </head>
@@ -89,6 +88,23 @@
   var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
   var CARDS = [];
+
+  // --- ADDED: duplex interleave toggle injected into existing controls (no HTML edits) ---
+  var controls = document.querySelector('.controls');
+  var interWrap = document.createElement('label');
+  interWrap.style.display = 'inline-flex';
+  interWrap.style.alignItems = 'center';
+  interWrap.style.gap = '6px';
+  interWrap.style.fontSize = '14px';
+  interWrap.style.color = '#111';
+  interWrap.title = 'When ON: outputs Front page then its matching Back page (best for duplex).';
+  var interChk = document.createElement('input');
+  interChk.type = 'checkbox';
+  interChk.id = 'interleave';
+  interWrap.appendChild(interChk);
+  interWrap.appendChild(document.createTextNode('Pair fronts & backs (duplex)'));
+  controls.appendChild(interWrap);
+  // --- end ADDED UI ---
 
   // FIX 2: conservative per-card limits to avoid overflow pushing layout
   var MAX_CHARS = 240;   // ~safe at 14pt, 1.25 line-height, 5.25" x 4" inner box
@@ -132,6 +148,13 @@
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
+  // --- ADDED: compute 2x2 back order for the selected flip (no change to your logic) ---
+  function orderBackGroup(g, flip){
+    return (flip==='long') ? [g[2], g[3], g[0], g[1]]  // mirror TOP/BOTTOM
+                           : [g[1], g[0], g[3], g[2]]; // mirror LEFT/RIGHT
+  }
+  // --- end helper ---
+
   function clearPages(){ pages.innerHTML = ''; }
 
   function renderFronts(){
@@ -143,19 +166,51 @@
     var flip = flipEl.value; // landscape sheet
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
-      // Landscape: long-edge → mirror TOP/BOTTOM; short-edge → mirror LEFT/RIGHT
       var order = (flip==='long') ? [g[2],g[3],g[0],g[1]] : [g[1],g[0],g[3],g[2]];
       pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
     });
   }
 
+  // --- REPLACED BODY ONLY: arrange() now supports optional interleave ---
   function arrange(){
     readRows();
     clearPages();
-    renderFronts();
-    renderBacks();
+
+    var flip = flipEl.value; // 'long' or 'short'
+    var fronts = CARDS.map(function(c){ return c.front; });
+    var backs  = CARDS.map(function(c){ return c.back; });
+
+    var fGroups = chunk(fronts, CARDS_PER_SHEET);
+    var bGroups = chunk(backs,  CARDS_PER_SHEET);
+
+    if(interChk.checked){
+      // INTERLEAVED: each Front page immediately followed by its matching Back page
+      for(var i=0;i<fGroups.length;i++){
+        var fg = fGroups[i].slice(0); while(fg.length<CARDS_PER_SHEET) fg.push('');
+        var bg = (bGroups[i] ? bGroups[i].slice(0) : []); while(bg.length<CARDS_PER_SHEET) bg.push('');
+        var backOrder = orderBackGroup(bg, flip);
+
+        pages.insertAdjacentHTML('beforeend',
+          '<div class="page-label">FRONTS</div>' + sheetHTML(fg.map(cardHTML)) +
+          '<div class="page-label">BACKS</div>'  + sheetHTML(backOrder.map(cardHTML))
+        );
+      }
+    }else{
+      // ORIGINAL behavior unchanged: all fronts first, then all backs
+      fGroups.forEach(function(g){
+        var gg = g.slice(0); while(gg.length<CARDS_PER_SHEET) gg.push('');
+        pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(gg.map(cardHTML)));
+      });
+      bGroups.forEach(function(g){
+        var gg = g.slice(0); while(gg.length<CARDS_PER_SHEET) gg.push('');
+        var order = orderBackGroup(gg, flip);
+        pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
+      });
+    }
+
     window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
   }
+  // --- end arrange() ---
 
   // Buttons
   document.getElementById('addCard').addEventListener('click', function(){ addRow('',''); });
