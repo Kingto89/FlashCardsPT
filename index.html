@@ -33,7 +33,16 @@
   /* FIX 1: remove forced page breaks; rely on natural pagination */
   .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;
          page-break-after:auto; break-after:auto;}
-  .sheet{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,var(--card-w));grid-template-rows:repeat(2,var(--card-h));justify-content:center;align-content:center}
+  .sheet{
+  position:absolute;inset:0;
+  display:grid;
+  grid-template-columns:repeat(2,var(--card-w));
+  grid-template-rows:repeat(2,var(--card-h));
+  justify-content:center;
+  align-content:center;
+  justify-items:center;   /* added */
+  align-items:center;     /* added */
+}
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
   .cut{position:absolute;inset:0.02in;border:0.3pt solid rgba(0,0,0,.35)}
