@@ -79,7 +79,7 @@
         </select>
       </label>
       <button id="btnArrange" class="ok">Arrange For Print</button>
-      <button id="btnPDF" class="secondary">Build Both (PDF)</button>
+      <!-- Removed Build Both (PDF) button -->
       <button id="btnPrint">Print</button>
     </div>
 
@@ -97,6 +97,9 @@
   var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
   var CARDS = [];
+
+  // Default to SHORT edge duplex
+  flipEl.value = 'short';
 
   // --- ADDED: duplex interleave toggle injected into existing controls (no HTML edits) ---
   var controls = document.querySelector('.controls');
@@ -227,7 +230,7 @@ function orderBackGroup(g, flip){
   // Buttons
   document.getElementById('addCard').addEventListener('click', function(){ addRow('',''); });
   document.getElementById('btnArrange').addEventListener('click', arrange);
-  document.getElementById('btnPDF').addEventListener('click', function(){ arrange(); requestAnimationFrame(function(){ window.print(); }); });
+  // Removed btnPDF handler
   document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) arrange(); requestAnimationFrame(function(){ window.print(); }); });
 
   // Seed two example rows so page shows structure
