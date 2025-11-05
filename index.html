@@ -30,19 +30,18 @@
 
   /* Sheet layout */
   @page{size: 11in 8.5in; margin: var(--margin)}
-  /* FIX 1: remove forced page breaks; rely on natural pagination */
   .print{width:var(--page-w);height:var(--page-h);position:relative;background:#fff;color:#000;
          page-break-after:auto; break-after:auto;}
   .sheet{
-  position:absolute;inset:0;
-  display:grid;
-  grid-template-columns:repeat(2,var(--card-w));
-  grid-template-rows:repeat(2,var(--card-h));
-  justify-content:center;
-  align-content:center;
-  justify-items:center;   /* added */
-  align-items:center;     /* added */
-}
+    position:absolute;inset:0;
+    display:grid;
+    grid-template-columns:repeat(2,var(--card-w));
+    grid-template-rows:repeat(2,var(--card-h));
+    justify-content:center;
+    align-content:center;
+    justify-items:center;
+    align-items:center;
+  }
   .card{position:relative;width:var(--card-w);height:var(--card-h);background:#fff;overflow:hidden}
   .card-inner{position:absolute;inset:var(--safe);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14pt;line-height:1.25}
   .cut{position:absolute;inset:0.02in;border:0.3pt solid rgba(0,0,0,.35)}
@@ -57,7 +56,6 @@
     linear-gradient(#000,#000) right 0 bottom -0.12in/ 0.4pt var(--crop) no-repeat}
   .page-label{margin:12px 0 4px 0;font-size:13px;color:#334155}
 
-  /* FIX 1b: ensure wrapper padding doesn't push sheets onto extra pages in print */
   @media print{
     header,.wrap.instructions,.page-label{display:none!important}
     #pages.wrap{padding:0!important;margin:0!important}
@@ -72,19 +70,14 @@
 
     <div class="controls">
       <button id="addCard" class="ok">+ Add Card</button>
-      <label>Duplex flip:
-        <select id="flip">
-          <option value="long">Flip on LONG edge (recommended)</option>
-          <option value="short">Flip on SHORT edge</option>
-        </select>
-      </label>
+      <!-- Duplex fixed: SHORT edge (no selector) -->
+      <span class="muted">Duplex flip: <strong>Flip on SHORT edge</strong></span>
       <button id="btnArrange" class="ok">Arrange For Print</button>
-      <!-- Removed Build Both (PDF) button -->
       <button id="btnPrint">Print</button>
     </div>
 
     <div id="cardsArea"></div>
-    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two-sided: Flip on long edge</strong>.</div>
+    <div class="muted">Each row is one card. Left = FRONT, Right = BACK. Use <strong>Arrange For Print</strong> before printing. Print with <strong>Scale 100%</strong> and <strong>Two-sided: Flip on short edge</strong>.</div>
   </div>
 </header>
 
@@ -94,14 +87,10 @@
 (function(){
   var cardsArea = document.getElementById('cardsArea');
   var pages   = document.getElementById('pages');
-  var flipEl  = document.getElementById('flip');
   var CARDS_PER_SHEET = 4;
   var CARDS = [];
 
-  // Default to SHORT edge duplex
-  flipEl.value = 'short';
-
-  // --- ADDED: duplex interleave toggle injected into existing controls (no HTML edits) ---
+  // Inject "Pair fronts & backs (duplex)" toggle (kept as before)
   var controls = document.querySelector('.controls');
   var interWrap = document.createElement('label');
   interWrap.style.display = 'inline-flex';
@@ -117,12 +106,10 @@
   interWrap.appendChild(interChk);
   interWrap.appendChild(document.createTextNode('Pair fronts & backs (duplex)'));
   controls.appendChild(interWrap);
-  // --- end ADDED UI ---
 
-  // FIX 2: conservative per-card limits to avoid overflow pushing layout
-  var MAX_CHARS = 240;   // ~safe at 14pt, 1.25 line-height, 5.25" x 4" inner box
-  var MAX_WORDS = 40;    // backstop if very short words inflate char count
-
+  // Text clamp (unchanged)
+  var MAX_CHARS = 240;
+  var MAX_WORDS = 40;
   function clampText(s){
     s = (s||'').trim();
     if(!s) return '';
@@ -161,37 +148,34 @@
   function sheetHTML(cards){ return '<div class="print"><div class="sheet">'+cards.join('')+'</div></div>'; }
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
-  // --- ADDED: compute 2x2 back order for the selected flip (no change to your logic) ---
-function orderBackGroup(g, flip){
-  // This matches your BK1..BK4 labeling to FR1..FR4 on duplex
-  return (flip==='long') ? [g[1], g[0], g[3], g[2]]   // LONG edge
-                         : [g[2], g[3], g[0], g[1]];  // SHORT edge
-}
-
-  // --- end helper ---
+  // FIXED SHORT-EDGE BACK ORDER (mirror LEFT/RIGHT only)
+  function orderBackGroupShort(g){
+    // indexes: [0,1,2,3] = [TL, TR, BL, BR] → short-edge duplex needs horizontal mirror
+    return [g[1], g[0], g[3], g[2]];
+  }
 
   function clearPages(){ pages.innerHTML = ''; }
 
   function renderFronts(){
     var groups = chunk(CARDS.map(function(c){return c.front;}), CARDS_PER_SHEET);
-    groups.forEach(function(g){ while(g.length<CARDS_PER_SHEET) g.push(''); pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(g.map(cardHTML))); });
+    groups.forEach(function(g){
+      while(g.length<CARDS_PER_SHEET) g.push('');
+      pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(g.map(cardHTML)));
+    });
   }
   function renderBacks(){
     var groups = chunk(CARDS.map(function(c){return c.back;}), CARDS_PER_SHEET);
-    var flip = flipEl.value; // landscape sheet
     groups.forEach(function(g){
       while(g.length<CARDS_PER_SHEET) g.push('');
-      var order = (flip==='long') ? [g[2],g[3],g[0],g[1]] : [g[1],g[0],g[3],g[2]];
+      var order = orderBackGroupShort(g); // always short-edge
       pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
     });
   }
 
-  // --- REPLACED BODY ONLY: arrange() now supports optional interleave ---
   function arrange(){
     readRows();
     clearPages();
 
-    var flip = flipEl.value; // 'long' or 'short'
     var fronts = CARDS.map(function(c){ return c.front; });
     var backs  = CARDS.map(function(c){ return c.back; });
 
@@ -199,38 +183,33 @@ function orderBackGroup(g, flip){
     var bGroups = chunk(backs,  CARDS_PER_SHEET);
 
     if(interChk.checked){
-      // INTERLEAVED: each Front page immediately followed by its matching Back page
       for(var i=0;i<fGroups.length;i++){
         var fg = fGroups[i].slice(0); while(fg.length<CARDS_PER_SHEET) fg.push('');
         var bg = (bGroups[i] ? bGroups[i].slice(0) : []); while(bg.length<CARDS_PER_SHEET) bg.push('');
-        var backOrder = orderBackGroup(bg, flip);
-
+        var backOrder = orderBackGroupShort(bg); // always short-edge
         pages.insertAdjacentHTML('beforeend',
           '<div class="page-label">FRONTS</div>' + sheetHTML(fg.map(cardHTML)) +
           '<div class="page-label">BACKS</div>'  + sheetHTML(backOrder.map(cardHTML))
         );
       }
     }else{
-      // ORIGINAL behavior unchanged: all fronts first, then all backs
       fGroups.forEach(function(g){
         var gg = g.slice(0); while(gg.length<CARDS_PER_SHEET) gg.push('');
         pages.insertAdjacentHTML('beforeend', '<div class="page-label">FRONTS</div>'+sheetHTML(gg.map(cardHTML)));
       });
       bGroups.forEach(function(g){
         var gg = g.slice(0); while(gg.length<CARDS_PER_SHEET) gg.push('');
-        var order = orderBackGroup(gg, flip);
+        var order = orderBackGroupShort(gg); // always short-edge
         pages.insertAdjacentHTML('beforeend', '<div class="page-label">BACKS</div>'+sheetHTML(order.map(cardHTML)));
       });
     }
 
     window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
   }
-  // --- end arrange() ---
 
   // Buttons
   document.getElementById('addCard').addEventListener('click', function(){ addRow('',''); });
   document.getElementById('btnArrange').addEventListener('click', arrange);
-  // Removed btnPDF handler
   document.getElementById('btnPrint').addEventListener('click', function(){ if(!pages.querySelector('.print')) arrange(); requestAnimationFrame(function(){ window.print(); }); });
 
   // Seed two example rows so page shows structure
