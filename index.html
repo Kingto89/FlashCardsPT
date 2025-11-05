@@ -149,10 +149,12 @@
   function chunk(arr,n){ var out=[]; for(var i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
   // --- ADDED: compute 2x2 back order for the selected flip (no change to your logic) ---
-  function orderBackGroup(g, flip){
-    return (flip==='long') ? [g[2], g[3], g[0], g[1]]  // mirror TOP/BOTTOM
-                           : [g[1], g[0], g[3], g[2]]; // mirror LEFT/RIGHT
-  }
+function orderBackGroup(g, flip){
+  // This matches your BK1..BK4 labeling to FR1..FR4 on duplex
+  return (flip==='long') ? [g[1], g[0], g[3], g[2]]   // LONG edge
+                         : [g[2], g[3], g[0], g[1]];  // SHORT edge
+}
+
   // --- end helper ---
 
   function clearPages(){ pages.innerHTML = ''; }
